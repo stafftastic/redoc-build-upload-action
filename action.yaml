@@ -57,7 +57,7 @@ runs:
         json2yaml() { python3 -c 'import sys,yaml,json;print(yaml.dump(json.loads(sys.stdin.read())))'; }
         in="$(mktemp)"
         out="$(mktemp)"
-        if [ "${{github.event_name}}" == "release" ]; then
+        if [ "${{github.event_name}}" = "release" ]; then
           yaml2json < "${{inputs.spec}}" | jq '.info.version = "${{github.event.release.name}}"' | json2yaml > "$in"
         else
           yaml2json < "${{inputs.spec}}" | jq '.info.version = "${{steps.meta.outputs.sha}}"' | json2yaml > "$in"
@@ -72,10 +72,17 @@ runs:
         sudo chmod +x /usr/local/bin/mc
         mc alias set --api s3v4 --path off s3 https://s3.amazonaws.com "${{inputs.accessKeyId}}" "${{inputs.secretKey}}"
         mc cp "${{steps.build.outputs.out}}" "s3/${{inputs.bucket}}/${{steps.meta.outputs.prefix}}/index.html"
-        mc cp "${{steps.build.outputs.out}}" "s3/${{inputs.bucket}}/${{steps.meta.outputs.commitPrefix}}/index.html"
+        if [ "${{github.event_name}}" != "release" ]; then
+          mc cp "${{steps.build.outputs.out}}" "s3/${{inputs.bucket}}/${{steps.meta.outputs.commitPrefix}}/index.html"
+        fi
     - name: Submit commit status
       shell: bash
       run: |
+        if [ "${{github.event_name}}" = "release" ]; then
+          url="${{steps.meta.outputs.url}}"
+        else
+          url="${{steps.meta.outputs.commitUrl}}"
+        fi
         curl -L \
           -X POST \
           -H "Accept: application/vnd.github+json" \
@@ -85,7 +92,7 @@ runs:
           -d @- <<EOF
           {
             "state": "success",
-            "target_url": "${{steps.meta.outputs.commitUrl}}",
+            "target_url": "$url",
             "description": "View API documentation",
             "context": "API Documentation"
           }
