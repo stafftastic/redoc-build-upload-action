@@ -1,0 +1,68 @@
+name: Build and upload API docs
+description: Build HTML API documentation from an OpenAPI spec and upload it to S3
+inputs:
+  spec:
+    description: The path to the API spec
+    required: true
+  bucket:
+    description: The bucket to upload to
+    required: true
+  accessKeyId:
+    description: The AWS access key ID
+    required: true
+  secretKey:
+    description: The AWS secret access key
+    required: true
+  urlPrefix:
+    description: The URL prefix to publicly access bucket contents
+    required: false
+outputs:
+  url:
+    description: The URL of the uploaded API spec
+    value: ${{steps.meta.outputs.url}}
+  commitUrl:
+    description: The URL of the uploaded API spec (by commit)
+    value: ${{steps.meta.outputs.commitUrl}}
+runs:
+  using: composite
+  steps:
+    - name: Set up mc
+      shell: bash
+      run: |
+        sudo wget 'https://dl.min.io/client/mc/release/linux-amd64/mc' -O/usr/local/bin/mc
+        sudo chmod +x /usr/local/bin/mc
+        mc alias set --api s3v4 --path off s3 https://s3.amazonaws.com "${{inputs.accessKeyId}}" "${{inputs.secretKey}}"
+    - name: Build docs
+      id: build
+      shell: bash
+      run: |
+        in="$(mktemp)"
+        out="$(mktemp)"
+        cp "${{inputs.spec}}" "$in"
+        docker run --rm -v "$in:/spec.yaml" -v "$out:/out.html" redocly/cli build-docs /spec.yaml -o /out.html
+        echo "out=$out" >> $GITHUB_OUTPUT
+    - name: Generate metadata
+      id: meta
+      shell: bash
+      run: |
+        prefix="${{github.event.repository.name}}"
+        commitPrefix="$prefix/commits"
+        sha="${{github.sha}}"
+        case "${{github.event_name}}" in
+          pull_request)
+            echo "prefix=$prefix/pull-requests/${{github.event.pull_request.number}}" >> $GITHUB_OUTPUT
+            sha="${{github.event.pull_request.head.sha}}" >> $GITHUB_OUTPUT
+          release)
+            echo "prefix=$prefix/release/${{github.event.release.name}}" >> $GITHUB_OUTPUT
+          push)
+            echo "prefix=$prefix/branch/${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+        esac
+        echo "sha=$sha" >> $GITHUB_OUTPUT
+        echo "url=${{inputs.urlPrefix}}/$prefix/index.html" >> $GITHUB_OUTPUT
+        echo "commitPrefix=$commitPrefix" >> $GITHUB_OUTPUT
+        echo "commitUrl=${{inputs.urlPrefix}}/$commitPrefix/$sha/index.html" >> $GITHUB_OUTPUT
+    - name: Upload docs
+      shell: bash
+      run: |
+        mc cp "${{steps.build.outputs.out}}" "s3/${{steps.meta.outputs.prefix}}/index.html"
+        mc cp "${{steps.build.outputs.out}}" "s3/${{steps.meta.outputs.commitPrefix}}/index.html"
