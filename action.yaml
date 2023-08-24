@@ -51,11 +51,14 @@ runs:
         case "${{github.event_name}}" in
           pull_request)
             echo "prefix=$prefix/pull-requests/${{github.event.pull_request.number}}" >> $GITHUB_OUTPUT
-            sha="${{github.event.pull_request.head.sha}}" >> $GITHUB_OUTPUT
+            sha="${{github.event.pull_request.head.sha}}"
+            ;;
           release)
             echo "prefix=$prefix/release/${{github.event.release.name}}" >> $GITHUB_OUTPUT
+            ;;
           push)
             echo "prefix=$prefix/branch/${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+            ;;
         esac
         echo "sha=$sha" >> $GITHUB_OUTPUT
         echo "url=${{inputs.urlPrefix}}/$prefix/index.html" >> $GITHUB_OUTPUT
