@@ -45,10 +45,10 @@ runs:
             echo "prefix=$prefix/branch/${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
             ;;
         esac
-        echo "sha=$sha" >> $GITHUB_OUTPUT
+        commitPrefix="$commitPrefix/$sha"
         echo "url=${{inputs.urlPrefix}}/$prefix/index.html" >> $GITHUB_OUTPUT
         echo "commitPrefix=$commitPrefix" >> $GITHUB_OUTPUT
-        echo "commitUrl=${{inputs.urlPrefix}}/$commitPrefix/$sha/index.html" >> $GITHUB_OUTPUT
+        echo "commitUrl=${{inputs.urlPrefix}}/$commitPrefix/index.html" >> $GITHUB_OUTPUT
     - name: Build docs
       id: build
       shell: bash
