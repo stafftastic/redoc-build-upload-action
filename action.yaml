@@ -26,21 +26,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Set up mc
-      shell: bash
-      run: |
-        sudo wget 'https://dl.min.io/client/mc/release/linux-amd64/mc' -O/usr/local/bin/mc
-        sudo chmod +x /usr/local/bin/mc
-        mc alias set --api s3v4 --path off s3 https://s3.amazonaws.com "${{inputs.accessKeyId}}" "${{inputs.secretKey}}"
-    - name: Build docs
-      id: build
-      shell: bash
-      run: |
-        in="$(mktemp)"
-        out="$(mktemp)"
-        cp "${{inputs.spec}}" "$in"
-        docker run --rm -v "$in:/spec.yaml" -v "$out:/out.html" redocly/cli build-docs /spec.yaml -o /out.html
-        echo "out=$out" >> $GITHUB_OUTPUT
     - name: Generate metadata
       id: meta
       shell: bash
@@ -64,8 +49,20 @@ runs:
         echo "url=${{inputs.urlPrefix}}/$prefix/index.html" >> $GITHUB_OUTPUT
         echo "commitPrefix=$commitPrefix" >> $GITHUB_OUTPUT
         echo "commitUrl=${{inputs.urlPrefix}}/$commitPrefix/$sha/index.html" >> $GITHUB_OUTPUT
+    - name: Build docs
+      id: build
+      shell: bash
+      run: |
+        in="$(mktemp)"
+        out="$(mktemp)"
+        cp "${{inputs.spec}}" "$in"
+        docker run --rm -v "$in:/spec.yaml" -v "$out:/out.html" redocly/cli build-docs /spec.yaml -o /out.html
+        echo "out=$out" >> $GITHUB_OUTPUT
     - name: Upload docs
       shell: bash
       run: |
+        sudo wget 'https://dl.min.io/client/mc/release/linux-amd64/mc' -O/usr/local/bin/mc
+        sudo chmod +x /usr/local/bin/mc
+        mc alias set --api s3v4 --path off s3 https://s3.amazonaws.com "${{inputs.accessKeyId}}" "${{inputs.secretKey}}"
         mc cp "${{steps.build.outputs.out}}" "s3/${{steps.meta.outputs.prefix}}/index.html"
         mc cp "${{steps.build.outputs.out}}" "s3/${{steps.meta.outputs.commitPrefix}}/index.html"
