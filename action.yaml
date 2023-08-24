@@ -56,6 +56,7 @@ runs:
         in="$(mktemp)"
         out="$(mktemp)"
         cp "${{inputs.spec}}" "$in"
+        docker pull -q redocly/cli
         docker run --rm -v "$in:/spec.yaml" -v "$out:/out.html" redocly/cli build-docs /spec.yaml -o /out.html
         echo "out=$out" >> $GITHUB_OUTPUT
     - name: Upload docs
