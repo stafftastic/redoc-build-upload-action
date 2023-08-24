@@ -53,9 +53,15 @@ runs:
       id: build
       shell: bash
       run: |
+        yaml2json() { python3 -c 'import sys,yaml,json;print(json.dumps(yaml.safe_load(sys.stdin.read())))'; }
+        json2yaml() { python3 -c 'import sys,yaml,json;print(yaml.dump(json.loads(sys.stdin.read())))'; }
         in="$(mktemp)"
         out="$(mktemp)"
-        cp "${{inputs.spec}}" "$in"
+        if [ "${{github.event_name}}" == "release" ]; then
+          yaml2json < "${{inputs.spec}}" | jq '.info.version = "${{github.event.release.name}}"' | json2yaml > "$in"
+        else
+          yaml2json < "${{inputs.spec}}" | jq '.info.version = "${{steps.meta.outputs.sha}}"' | json2yaml > "$in"
+        fi
         docker pull -q redocly/cli
         docker run --rm -v "$in:/spec.yaml" -v "$out:/out.html" redocly/cli build-docs /spec.yaml -o /out.html
         echo "out=$out" >> $GITHUB_OUTPUT
