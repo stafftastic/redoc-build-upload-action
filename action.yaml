@@ -79,7 +79,7 @@ runs:
             -H "Authorization: Bearer ${{github.token}}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             -H "Content-Type: text/html" \
-            "https://uploads.github.com/repos/${{github.repository}}/releases/${{github.event.release.id}}/assets?name=api-docs-${{github.event.release.tag_name}}.html" \
+            "https://uploads.github.com/repos/${{github.repository}}/releases/${{github.event.release.id}}/assets?name=${{github.event.repository.name}}-${{github.event.release.tag_name}}-api-docs.html" \
             --data-binary "@${{steps.build.outputs.out}}"
         else
           mc cp "${{steps.build.outputs.out}}" "s3/${{inputs.bucket}}/${{steps.meta.outputs.commitPrefix}}/index.html"
